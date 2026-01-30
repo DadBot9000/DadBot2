@@ -1,65 +1,61 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import OpenAI from "openai";
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
+function norm(s: string) {
+  return s.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Use POST" });
-    }
+    if (req.method !== "POST") return res.status(405).json({ error: "Use POST" });
 
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return res
-        .status(500)
-        .json({ error: "Missing OPENAI_API_KEY on server" });
-    }
+    if (!apiKey) return res.status(500).json({ error: "Missing OPENAI_API_KEY on server" });
 
-    const { query, previousJoke } = req.body ?? {};
+    const { query, avoidJokes } = req.body ?? {};
+    if (!query || typeof query !== "string") return res.status(400).json({ error: "Missing query" });
 
-    if (!query || typeof query !== "string") {
-      return res.status(400).json({ error: "Missing query" });
-    }
+    const avoid: string[] = Array.isArray(avoidJokes)
+      ? avoidJokes.filter((x: any) => typeof x === "string").slice(0, 50)
+      : [];
 
-    const prev =
-      typeof previousJoke === "string" ? previousJoke.trim() : "";
-
+    const avoidSet = new Set(avoid.map(norm));
     const client = new OpenAI({ apiKey });
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
-      temperature: 0.9, // 🔥 higher = more variation
-      max_tokens: 80,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are DadBot9000. Return ONE short dad joke about the user's topic. " +
-            "If a previous joke is provided, the new joke MUST be different. " +
-            "No explanations. No extra text.",
-        },
-        {
-          role: "user",
-          content:
-            `Topic: ${query.trim()}\n` +
-            (prev
-              ? `Previous joke (do NOT repeat or rephrase): ${prev}\n`
-              : "") +
-            "Return a NEW joke now.",
-        },
-      ],
-    });
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const completion = await client.chat.completions.create({
+        model: "gpt-4.1-mini",
+        temperature: 1.0,
+        max_tokens: 80,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are DadBot9000. Return ONE short dad joke about the user's topic. " +
+              "It MUST NOT match or closely rephrase any joke in the avoid list. " +
+              "No explanations. No extra text.",
+          },
+          {
+            role: "user",
+            content:
+              `Topic: ${query.trim()}\n` +
+              (avoid.length ? `Avoid list:\n- ${avoid.join("\n- ")}\n` : "") +
+              "Return a NEW joke now.",
+          },
+        ],
+      });
 
-    const joke =
-      completion.choices[0]?.message?.content?.trim() ?? "";
+      const joke = completion.choices[0]?.message?.content?.trim() ?? "";
+      if (!joke) continue;
 
-    return res.status(200).json({ joke });
+      if (!avoidSet.has(norm(joke))) {
+        return res.status(200).json({ joke, avoidCount: avoid.length });
+      }
+    }
+
+    return res.status(409).json({ error: "Could not generate a unique joke. Try another word." });
   } catch (e: any) {
     console.error("dadbot error:", e);
-    return res.status(500).json({
-      error: e?.message ?? "Server error",
-    });
+    return res.status(500).json({ error: e?.message ?? "Server error" });
   }
 }
