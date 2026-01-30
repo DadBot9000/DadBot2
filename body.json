@@ -1,7 +1,0 @@
-{
-  "model": "gpt-4.1-mini",
-  "messages": [
-    { "role": "system", "content": "You are a friendly dad joke bot." },
-    { "role": "user", "content": "Tell me a dad joke about APIs." }
-  ]
-}
