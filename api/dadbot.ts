@@ -9,16 +9,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      // This makes the problem obvious in the response instead of crashing.
       return res.status(500).json({ error: "Missing OPENAI_API_KEY on server" });
     }
-
-    const client = new OpenAI({ apiKey });
 
     const { query } = req.body ?? {};
     if (!query || typeof query !== "string") {
       return res.status(400).json({ error: "Missing query" });
     }
+
+    const client = new OpenAI({ apiKey });
 
     const completion = await client.chat.completions.create({
       model: "gpt-4.1-mini",
