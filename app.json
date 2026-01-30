@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "DadBot9000",
+    "slug": "DadBotMobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "dadbot9000",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "cli": {
+      "appVersionSource": "remote"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dadbot9000.app"
+    },
+    "android": {
+      "package": "com.dadbot9000.app",
+      "versionCode": 25,
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#000000",
+          "image": "./assets/images/splash-transparent.png",
+          "imageWidth": 300,
+          "resizeMode": "contain"
+        }
+      ],
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "70fcda6c-9fde-4f28-9cd0-b0aaca3adb82"
+      }
+    }
+  }
+}
