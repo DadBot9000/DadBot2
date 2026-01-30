@@ -9,9 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return res
-        .status(500)
-        .json({ error: "Missing OPENAI_API_KEY on server" });
+      return res.status(500).json({ error: "Missing OPENAI_API_KEY on server" });
     }
 
     const { query } = req.body ?? {};
@@ -19,6 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: "Missing query" });
     }
 
+    // ✅ ONLY ONE client creation
     const client = new OpenAI({ apiKey });
 
     const completion = await client.chat.completions.create({
