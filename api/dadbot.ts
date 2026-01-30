@@ -9,7 +9,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({ error: "Missing OPENAI_API_KEY on server" });
+      return res
+        .status(500)
+        .json({ error: "Missing OPENAI_API_KEY on server" });
     }
 
     const { query } = req.body ?? {};
