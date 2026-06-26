@@ -1,16 +1,32 @@
+// app/_layout.tsx
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from "expo-av";
-import { Slot } from "expo-router";
+import {
+  Audio,
+  InterruptionModeAndroid,
+  InterruptionModeIOS
+} from "expo-av";
+import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { Animated, AppState, Easing, Image, StyleSheet, View } from "react-native";
+import {
+  Animated,
+  AppState,
+  Easing,
+  Image,
+  Platform,
+  StyleSheet,
+  View,
+} from "react-native";
+;
+
 
 // Prevent native splash from auto-hiding (we will hide it ourselves)
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -117,7 +133,7 @@ function AudioProvider({ children }: { children: React.ReactNode }) {
   const [trackKey, setTrackKey] = useState<TrackKey>("relax");
   const [muted, setMuted] = useState(false);
   const [bgmVolume, setBgmVolumeState] = useState(0.35);
-  const [sfxVolume, setSfxVolumeState] = useState(1.0);
+  const [sfxVolume, setSfxVolumeState] = useState(0.55);
 
   const [hydrated, setHydrated] = useState(false);
 
@@ -126,9 +142,10 @@ function AudioProvider({ children }: { children: React.ReactNode }) {
   const opIdRef = useRef(0);
 
   // Refs for safe async callbacks
-  const mutedRef = useRef(false);
+    const mutedRef = useRef(false);
   const bgmOnRef = useRef(true);
   const trackKeyRef = useRef<TrackKey>(trackKey);
+  const bgmVolumeRef = useRef(bgmVolume);
 
   // should resume when coming back active?
   const shouldResumeRef = useRef(false);
@@ -137,13 +154,20 @@ function AudioProvider({ children }: { children: React.ReactNode }) {
     mutedRef.current = muted;
   }, [muted]);
 
-  useEffect(() => {
-    bgmOnRef.current = bgmOn;
-  }, [bgmOn]);
+    useEffect(() => {
+    bgmVolumeRef.current = bgmVolume;
+  }, [bgmVolume]);
 
   useEffect(() => {
     trackKeyRef.current = trackKey;
   }, [trackKey]);
+
+  useEffect(() => {
+  bgmOnRef.current = bgmOn;
+
+  // Important: if BGM is off, never allow AppState resume to start it
+  if (!bgmOn) shouldResumeRef.current = false;
+}, [bgmOn]);
 
   const trackKeys = useMemo(() => {
     const userKeys = userTracks.map((t) => makeUserKey(t.id));
@@ -308,7 +332,7 @@ function AudioProvider({ children }: { children: React.ReactNode }) {
       const st: any = await soundRef.current.getStatusAsync();
       if (!st?.isLoaded) return;
 
-      const target = mutedRef.current ? 0 : clamp01(bgmVolume);
+      const target = mutedRef.current ? 0 : clamp01(bgmVolumeRef.current);
       await soundRef.current.setVolumeAsync(target);
     } catch {}
   };
@@ -358,7 +382,7 @@ function AudioProvider({ children }: { children: React.ReactNode }) {
     const { sound } = await Audio.Sound.createAsync(source, {
       shouldPlay: false,
       isLooping: true,
-      volume: clamp01(bgmVolume),
+      volume: clamp01(bgmVolumeRef.current),
     });
 
     try {
@@ -387,17 +411,27 @@ function AudioProvider({ children }: { children: React.ReactNode }) {
       if (!hydrated) return;
 
       if (state === "background" || state === "inactive") {
-        shouldResumeRef.current = !!bgmOnRef.current && !mutedRef.current;
-        await pauseOnly();
-        return;
-      }
+  shouldResumeRef.current =
+    !!bgmOnRef.current &&
+    !mutedRef.current &&
+    clamp01(bgmVolumeRef.current) > 0;
+  await pauseOnly();
+  return;
+}
 
       if (state === "active") {
-        if (shouldResumeRef.current && bgmOnRef.current && !mutedRef.current) {
-          await startFromBeginning();
-        }
-        shouldResumeRef.current = false;
-      }
+  // If BGM is off, never resume even if shouldResumeRef was set earlier
+  if (!bgmOnRef.current) {
+    shouldResumeRef.current = false;
+    return;
+  }
+
+  if (shouldResumeRef.current && !mutedRef.current) {
+    await startFromBeginning();
+  }
+  shouldResumeRef.current = false;
+}
+
     });
 
     return () => sub.remove();
@@ -480,20 +514,30 @@ function SplashOverlay({
   opacity: Animated.Value;
   onDone: () => void;
 }) {
-  useEffect(() => {
-    const holdTimer = setTimeout(() => {
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 2500,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start(() => onDone());
-    }, 4500);
+  const HOLD_IMAGE_MS = 5000; // <- increase this if you want splash.png to stay longer
+  const FADE_MS = 2500;
 
-    return () => {
-      clearTimeout(holdTimer);
-    };
+  const fadeStartedRef = useRef(false);
+
+  const startFade = useCallback(() => {
+    if (fadeStartedRef.current) return;
+    fadeStartedRef.current = true;
+
+    Animated.timing(opacity, {
+      toValue: 0,
+      duration: FADE_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => onDone());
   }, [opacity, onDone]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      startFade();
+    }, HOLD_IMAGE_MS);
+
+    return () => clearTimeout(t);
+  }, [startFade]);
 
   return (
     <Animated.View style={[styles.overlay, { opacity }]} pointerEvents="none">
@@ -506,9 +550,14 @@ function SplashOverlay({
   );
 }
 
+
+
 export default function RootLayout() {
   const [showOverlay, setShowOverlay] = useState(true);
   const opacity = useRef(new Animated.Value(1)).current;
+
+  const pathname = usePathname();
+  const isModalRoute = pathname === "/modal";
 
   // Ensure audio mode is set once early (prevents SFX glitches)
   const audioModeReadyRef = useRef(false);
@@ -523,11 +572,41 @@ export default function RootLayout() {
     })();
   }, []);
 
+  // ✅ CRITICAL: If modal is opened while splash overlay is still active,
+  // disable overlay permanently to prevent flash on returning from modal.
+  useEffect(() => {
+    if (isModalRoute && showOverlay) {
+      setShowOverlay(false);
+      opacity.setValue(0);
+    }
+  }, [isModalRoute, showOverlay, opacity]);
+
   return (
     <AudioProvider>
-      <View style={{ flex: 1 }}>
-        <Slot />
-        {showOverlay && (
+      <View style={{ flex: 1, backgroundColor: "#000" }}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: "#000" }, // ✅ prevents white flash
+          }}
+        >
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+
+          <Stack.Screen
+            name="modal"
+            options={{
+              presentation: "modal",
+              headerShown: false,
+              animation: Platform.OS === "ios" ? "slide_from_bottom" : "fade",
+              contentStyle: { backgroundColor: "#000" }, // ✅ modal background
+            }}
+          />
+
+          <Stack.Screen name="favorites" options={{ headerShown: false }} />
+        </Stack>
+
+        {/* ✅ Don’t render overlay while modal is open */}
+        {showOverlay && !isModalRoute && (
           <SplashOverlay opacity={opacity} onDone={() => setShowOverlay(false)} />
         )}
       </View>

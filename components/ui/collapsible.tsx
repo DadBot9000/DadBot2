@@ -42,4 +42,23 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginLeft: 24,
   },
+
+  devIconBtn: {
+  width: 42,
+  height: 42,
+  borderRadius: 21,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "rgba(255,255,255,0.10)",
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.15)",
+},
+devIconBtnActive: {
+  backgroundColor: "rgba(188,255,0,0.18)",
+  borderColor: "rgba(188,255,0,0.70)",
+},
+devIconText: {
+  fontSize: 22,
+},
+
 });

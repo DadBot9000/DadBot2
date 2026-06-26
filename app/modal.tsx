@@ -1,8 +1,15 @@
+// app/modal.tsx
 import Slider from "@react-native-community/slider";
 import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useAudio } from "./_layout";
 
 const BUILTIN_LABELS: Record<string, string> = {
@@ -45,6 +52,26 @@ export default function Modal() {
     return getTrackLabel(trackKey);
   }, [trackKey, getTrackLabel, isUserTrack]);
 
+  const closeModal = () => {
+    // ✅ BEST: dismiss modal (keeps underlying tab screen state intact)
+    // Works in expo-router when the screen is presented as a modal.
+    // @ts-ignore - some TS setups don't know dismiss() but it exists at runtime
+    if (typeof (router as any).dismiss === "function") {
+      // @ts-ignore
+      (router as any).dismiss();
+      return;
+    }
+
+    // Fallback: normal back navigation
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    // Last-resort fallback
+    router.replace("/(tabs)");
+  };
+
   const onUpload = async () => {
     try {
       const res = await DocumentPicker.getDocumentAsync({
@@ -58,7 +85,7 @@ export default function Modal() {
       const file = res.assets?.[0];
       if (!file?.uri) return;
 
-      const name = (file.name ?? "Uploaded Track").replace(/\.[^/.]+$/, ""); // remove extension
+      const name = (file.name ?? "Uploaded Track").replace(/\.[^/.]+$/, "");
       await addUserTrack({ name, uri: file.uri });
       setTracksOpen(true);
     } catch (e) {
@@ -86,7 +113,11 @@ export default function Modal() {
             <Text style={styles.muteIcon}>{muted ? "🔇" : "🔊"}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.closeBtn}
+            onPress={closeModal}
+            activeOpacity={0.8}
+          >
             <Text style={styles.closeText}>CLOSE</Text>
           </TouchableOpacity>
         </View>
@@ -143,22 +174,31 @@ export default function Modal() {
           onPress={() => setTracksOpen((v) => !v)}
           activeOpacity={0.85}
         >
-          <Text style={styles.toggleBtnText}>{tracksOpen ? "HIDE" : "SHOW"}</Text>
+          <Text style={styles.toggleBtnText}>
+            {tracksOpen ? "HIDE" : "SHOW"}
+          </Text>
         </TouchableOpacity>
       </View>
 
       {/* ✅ Upload button */}
-      <TouchableOpacity style={styles.uploadBtn} onPress={onUpload} activeOpacity={0.85}>
+      <TouchableOpacity
+        style={styles.uploadBtn}
+        onPress={onUpload}
+        activeOpacity={0.85}
+      >
         <Text style={styles.uploadBtnText}>+ UPLOAD AUDIO</Text>
       </TouchableOpacity>
 
       {tracksOpen && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 28 }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 28 }}
+        >
           {trackKeys.map((k) => {
             const active = k === trackKey;
             const user = isUserTrack(k);
 
-            const label = user ? getTrackLabel(k) : (BUILTIN_LABELS[k] ?? k);
+            const label = user ? getTrackLabel(k) : BUILTIN_LABELS[k] ?? k;
 
             return (
               <View key={k} style={styles.trackRow}>
@@ -167,7 +207,9 @@ export default function Modal() {
                   onPress={() => setTrackKey(k)}
                   activeOpacity={0.85}
                 >
-                  <Text style={[styles.trackText, active && styles.trackTextActive]}>
+                  <Text
+                    style={[styles.trackText, active && styles.trackTextActive]}
+                  >
                     {label} {active ? "✓" : ""}
                   </Text>
 
@@ -196,11 +238,21 @@ export default function Modal() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000", padding: 22, paddingTop: 60 },
 
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
   title: { color: "white", fontSize: 26, fontWeight: "900" },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 10 },
 
-  closeBtn: { backgroundColor: "rgba(255,255,255,0.1)", paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12 },
+  closeBtn: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+  },
   closeText: { color: "white", fontWeight: "900", fontSize: 12 },
 
   muteBtn: {
@@ -213,21 +265,46 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.15)",
   },
-  muteBtnActive: { backgroundColor: "rgba(255,0,0,0.18)", borderColor: "rgba(255,0,0,0.7)" },
+  muteBtnActive: {
+    backgroundColor: "rgba(255,0,0,0.18)",
+    borderColor: "rgba(255,0,0,0.7)",
+  },
   muteIcon: { fontSize: 16 },
 
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 6,
+  },
   label: { color: "white", fontSize: 16, fontWeight: "800" },
 
-  subtitle: { color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: "800", marginTop: 18, marginBottom: 10 },
+  subtitle: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 14,
+    fontWeight: "800",
+    marginTop: 18,
+    marginBottom: 10,
+  },
 
   pill: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1 },
-  pillOn: { borderColor: "rgba(188,255,0,0.8)", backgroundColor: "rgba(188,255,0,0.15)" },
-  pillOff: { borderColor: "rgba(255,255,255,0.25)", backgroundColor: "rgba(255,255,255,0.08)" },
+  pillOn: {
+    borderColor: "rgba(188,255,0,0.8)",
+    backgroundColor: "rgba(188,255,0,0.15)",
+  },
+  pillOff: {
+    borderColor: "rgba(255,255,255,0.25)",
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
   pillText: { color: "white", fontWeight: "900" },
 
   sliderBlock: { marginBottom: 10 },
-  sliderLabel: { color: "rgba(255,255,255,0.8)", fontWeight: "800", marginBottom: 6, fontSize: 12 },
+  sliderLabel: {
+    color: "rgba(255,255,255,0.8)",
+    fontWeight: "800",
+    marginBottom: 6,
+    fontSize: 12,
+  },
   slider: { width: "100%", height: 34 },
 
   tracksHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -252,7 +329,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
   },
-  uploadBtnText: { color: "white", fontWeight: "900", fontSize: 12, textAlign: "center" },
+  uploadBtnText: {
+    color: "white",
+    fontWeight: "900",
+    fontSize: 12,
+    textAlign: "center",
+  },
 
   trackRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
 
@@ -265,7 +347,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.10)",
   },
-  trackBtnActive: { backgroundColor: "rgba(0,240,255,0.12)", borderColor: "rgba(0,240,255,0.55)" },
+  trackBtnActive: {
+    backgroundColor: "rgba(0,240,255,0.12)",
+    borderColor: "rgba(0,240,255,0.55)",
+  },
   trackText: { color: "white", fontWeight: "800", fontSize: 16 },
   trackTextActive: { color: "white" },
 

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "DadBot9000",
+    "name": "DadBot2.0",
     "slug": "DadBotMobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "com.dadbot9000.app",
-      "versionCode": 25,
+      "versionCode": 32,
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
